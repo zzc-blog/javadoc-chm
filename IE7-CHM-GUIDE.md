@@ -42,6 +42,49 @@ java -jar javadoc-chm-dev.jar "C:\path\to\docs\api" UTF-8
 > 也可以直接装 [HTML Help Workshop](https://www.microsoft.com/en-us/download/details.aspx?id=21138)，
 > 用 `C:\Program Files (x86)\HTML Help Workshop\hhc.exe`（两者版本相同，都是 4.74.8702）。
 
+### 1.1.1 内置的 hhc.exe 是哪个版本
+
+CHM 的编译结果、能承受多大的工程、以及 `R6002` 崩溃阈值，全都取决于
+`hhc.exe` 的版本，所以这里把实际使用的二进制记录清楚。
+
+| 项目 | 值 |
+|---|---|
+| 文件名 | `hhc.exe`（配套 `hha.dll`） |
+| FileVersion | **4.74.8702** |
+| ProductVersion | 4.74.8702 |
+| FileDescription | Microsoft® HTML Help Compiler |
+| CompanyName | Microsoft Corporation |
+| 架构 | **x86（32 位）** ← 这就是 `R6002` 的来源，见第 5 节 |
+| 大小 | `hhc.exe` 51,472 字节 / `hha.dll` 837,904 字节 |
+| 来源 | Microsoft HTML Help Workshop（随产品分发的官方二进制） |
+| 存放位置 | `src/main/resources/bin/`（打包后被复制到输出目录） |
+
+与系统安装的版本**逐字节相同**（SHA-256 一致），所以用内置的还是用
+`C:\Program Files (x86)\HTML Help Workshop\hhc.exe` 结果完全一样：
+
+```powershell
+# 自行核对
+$a = Get-FileHash .\src\main\resources\bin\hhc.exe -Algorithm SHA256
+$b = Get-FileHash "C:\Program Files (x86)\HTML Help Workshop\hhc.exe" -Algorithm SHA256
+$a.Hash -eq $b.Hash      # True
+```
+
+用 `-v` 之类参数看不到版本，要读 PE 头里的版本资源：
+
+```powershell
+(Get-Item .\src\main\resources\bin\hhc.exe).VersionInfo |
+    Select-Object FileVersion, ProductVersion, FileDescription, CompanyName
+
+# 判断 32/64 位
+$b = [System.IO.File]::ReadAllBytes(".\src\main\resources\bin\hhc.exe")
+$pe = [BitConverter]::ToInt32($b, 0x3C)
+'{0:X4}' -f [BitConverter]::ToUInt16($b, $pe + 4)     # 014C = x86
+```
+
+> **4.74 是微软最后一版 HTML Help Workshop**（2003 年发布，之后再没更新），
+> 所以不存在"换个新版本也许就不崩了"这条路——只能按第 5 节的办法控制工程规模。
+> 它同时也是一个 32 位程序，2 GB 地址空间是硬上限。
+
 ### 1.2 命令行参数
 
 ```powershell

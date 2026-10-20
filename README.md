@@ -1,4 +1,4 @@
-# javadoc.chm
+# javadoc-chm
 
 把 javadoc 生成的 HTML 文档树编译成单个 `.chm`（Compiled HTML Help），
 带**目录树、关键字索引和全文检索**，并对 **CHM 内置的 IE7 内核**做了完整渲染兼容 ——
@@ -46,22 +46,61 @@ CHM 查看器用的是 **IE7 内核**（`documentMode === 7`），比现代浏�
 
 ## 环境要求
 
-- **JDK 8+**（构建需要 JDK 8+，运行 `java -jar` 即可）
+- **JDK 8+**（Maven 编译目标为 Java 8；运行 `java -jar` 即可）
+- **Maven 3.6+**（构建用）
 - **Windows**（CHM 是 Windows 专有格式）
-- `hhc.exe`：[HTML Help Workshop](https://www.microsoft.com/en-us/download/details.aspx?id=21138)
-  —— 项目已内置一份（`src/main/resources/bin/`），编译时会自动复制到输出目录
+- `hhc.exe`：HTML Help 编译器 —— 项目**已内置**，无需单独安装
+
+### 关于内置的 hhc.exe
+
+| 项目 | 值 |
+|---|---|
+| 版本 | **4.74.8702**（`FileVersion` / `ProductVersion` 相同） |
+| 描述 | Microsoft® HTML Help Compiler |
+| 架构 | **x86（32 位）** |
+| 位置 | `src/main/resources/bin/hhc.exe` + `hha.dll` |
+| 来源 | [HTML Help Workshop](https://www.microsoft.com/en-us/download/details.aspx?id=21138) 官方二进制 |
+
+运行时会自动复制到输出目录，然后由它把工程编译成 CHM：
+
+```powershell
+cd <输出目录>
+.\hhc.exe htmlhelp.hhp
+```
+
+- 与系统安装的 `C:\Program Files (x86)\HTML Help Workshop\hhc.exe` **逐字节相同**（SHA-256 一致）
+- **4.74 是微软最后一版**，2003 年后未再更新，所以无法通过升级来绕过问题
+- 因为是 32 位程序，`[FILES]` 条目超过约 12270 条会报 `runtime error R6002`，
+  详见 [IE7-CHM-GUIDE.md](IE7-CHM-GUIDE.md) 第 5 节
 
 ## 构建
 
-依赖都在 `lib/`，用 ant 或直接 javac：
+项目是一个标准的 Maven 工程，只有一个 `pom.xml`，没有其他构建脚本。
 
-```powershell
-ant dist
-
-# 或手动
-javac -encoding UTF-8 -d build/classes -cp "lib/*" `
-  (Get-ChildItem src/main/java -Recurse -Filter *.java).FullName
+```bash
+mvn clean package
 ```
+
+产物是**单个可运行的 fat jar**，Velocity / Commons / log4j 等依赖都已打进去：
+
+```
+target/javadoc-chm-3.0.0.jar
+```
+
+直接运行：
+
+```bash
+java -jar target/javadoc-chm-3.0.0.jar "<docs>/api" UTF-8
+```
+
+> 依赖全部来自 Maven 中央仓库（Velocity 1.7、Commons IO/Lang/Collections/Logging、
+> log4j 1.2.17），无需手动准备 jar。
+>
+> 如果没有 Maven，也可以在 IDE 里把它当普通 Java 工程导入（源码在 `src/main/java`，
+> 资源在 `src/main/resources`），或直接用 `javac` + 手动下载上述 6 个依赖。
+
+> 源码布局：`src/main/java`（代码）+ `src/main/resources`（Velocity 模板、
+> jQuery、内置的 `hhc.exe`）。
 
 ## 使用
 
@@ -74,7 +113,7 @@ java -Xmx2g `
   -Djavadoc.chm.sample=20 `
   -Djavadoc.chm.sampleDir=C:\work\sample `
   -Djavadoc.chm.title="jdk21 API-en" `
-  -jar dist\javadoc.chm-3.0.0.jar `
+  -jar target\javadoc-chm-3.0.0.jar `
   "C:\work\docs\api" UTF-8
 
 cd C:\work\sample
@@ -86,7 +125,7 @@ cd C:\work\sample
 ```powershell
 java -Xmx3g `
   -Djavadoc.chm.title="jdk21 API-en" `
-  -jar dist\javadoc.chm-3.0.0.jar `
+  -jar target\javadoc-chm-3.0.0.jar `
   "C:\work\docs\api" UTF-8
 
 cd C:\work\docs
@@ -103,7 +142,7 @@ cd C:\work\docs
 java -Xmx3g `
   -Djavadoc.chm.title="jdk21 API-zh" `
   -Djavadoc.chm.cjk=true `
-  -jar dist\javadoc.chm-3.0.0.jar `
+  -jar target\javadoc-chm-3.0.0.jar `
   "C:\work\docs-zh\api" UTF-8 "C:\work\docs-zh"
 ```
 
