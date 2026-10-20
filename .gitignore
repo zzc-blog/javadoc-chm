@@ -1,0 +1,23 @@
+# 构建产物
+/build/
+/bin/
+*.class
+
+# 生成的 CHM 与样本输出（体积大，不入库）
+*.chm
+/sample/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# 日志
+*.log
+
+# 编译依赖必须入库（全局 gitignore 可能忽略 *.jar，这里显式反排除）
+!lib/*.jar
+!/dist/*.jar
